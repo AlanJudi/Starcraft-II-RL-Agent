@@ -1,3 +1,10 @@
 venv
 
 venv/*
+RLAgent/__pycache__/*
+ZAgent/__pycache__/*
+QLearn/__pycache__/*
+*/__pycache__/*
+__pycache__/*
+approximator/*
+.gitignore
