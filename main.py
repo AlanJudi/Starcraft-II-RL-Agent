@@ -78,9 +78,8 @@ def save_training(agent, summary_writer):
     summary_writer.flush()
     sys.stdout.flush()
 
-def Train_DRL_Agent(ui):
+def run_drl_Agent(ui):
   ''' Function to train DRL Agent'''
-  
 
   env_args = dict(
     map_name=args.map,
@@ -152,8 +151,6 @@ def Train_DRL_Agent(ui):
   #reset environment
   runner.reset()
 
-
-  
   try:
     i = 0
     ui.print_to_tab("Running batch iterations .... \n", ui.console)
@@ -198,7 +195,7 @@ def init_agents(ui):
   if args.train:
     time.sleep(2)
     ui.print_to_tab("Training Convolutional RL agent .... \n", ui.console)
-    Train_DRL_Agent(ui)
+    run_drl_Agent(ui)
     return
 
   ui.print_to_tab("Initializing RL Agent 1 \n", ui.console)
@@ -209,7 +206,7 @@ def init_agents(ui):
 
 
   try:
-    ui.print_to_tab("Initializing Pysc Environment \n", ui.console)
+    ui.print_to_tab("Initializing Pysc2 Environment \n", ui.console)
     with sc2_env.SC2Env(
         map_name=args.map,  # Choose the map
         players=[sc2_env.Agent(sc2_env.Race.terran),
