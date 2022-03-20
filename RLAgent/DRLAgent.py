@@ -31,6 +31,7 @@ class DRLAgent(Agent.Agent):
     learning_rate=7e-4,
     max_gradient_norm=1.0,
     max_to_keep=5):
+    super(DRLAgent, self).__init__()
     self.sess = sess
     self.network_data_format = network_data_format
     self.network_cls = network_cls
@@ -40,6 +41,17 @@ class DRLAgent(Agent.Agent):
     self.max_gradient_norm = max_gradient_norm
     self.train_step = 0
     self.max_to_keep = max_to_keep
+    self.new_game()
+
+  # Start the new game and store actions and states for the reinforcement learning
+  def new_game(self):
+    self.base_top_left = None
+    self.previous_state = None
+    self.previous_action = None
+
+  def reset(self):
+    super(DRLAgent, self).reset()
+    self.new_game()
 
   def build(self, static_shape_channels, resolution, scope=None, reuse=None):
     #with tf.variable_scope(scope, reuse=reuse):
@@ -227,8 +239,7 @@ class DRLAgent(Agent.Agent):
     feed_dict = self.get_obs_feed(obs)
     return self.sess.run([self.samples, self.value], feed_dict=feed_dict)
 
-  def select_action(obs):
-    pass
+  
 
   def get_obs_feed(self, obs):
     return {self.feature_screen: obs['feature_screen'],

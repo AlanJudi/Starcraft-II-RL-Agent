@@ -1,4 +1,5 @@
 import argparse
+from ast import arg
 from functools import partial
 import os
 import shutil
@@ -17,6 +18,8 @@ from pysc2.env import sc2_env, run_loop
 
 import threading
 import tensorflow as tf
+import time
+
 
 tf.compat.v1.disable_v2_behavior()
 
@@ -69,13 +72,15 @@ saved_model_path = os.path.join(args.save_model, args.experiment_id)
 summary_type = 'train' if args.train else 'eval'
 summary_path = os.path.join(args.summary_path, args.experiment_id, summary_type)
 
-def _save_if_training(agent, summary_writer):
+def save_training(agent, summary_writer):
   if args.train:
     agent.save(saved_model_path)
     summary_writer.flush()
     sys.stdout.flush()
 
-def Train_DRL_Agent():
+def Train_DRL_Agent(ui):
+  ''' Function to train DRL Agent'''
+  
 
   env_args = dict(
     map_name=args.map,
@@ -98,8 +103,12 @@ def Train_DRL_Agent():
   env_fns = [partial(make_sc2env, **visualize_env_args)] * visuals_n
   visuals_n = args.envs - visuals_n
   
+  time.sleep(2)
+  ui.print_to_tab("Creating Starcraft Environment \n", ui.console)
+  
   if visuals_n > 0:
     env_fns.extend([partial(make_sc2env, **env_args)] * visuals_n)
+
 
   envs = ProcessEnv(env_fns)
 
@@ -129,77 +138,94 @@ def Train_DRL_Agent():
   static_shape_channels = runner.preprocess.get_input_channels()
   
   #build agent
+  time.sleep(2)
+  ui.print_to_tab("Building Agent .... \n", ui.console)
   agent.build(static_shape_channels, resolution=args.res)
 
   if os.path.exists(saved_model_path):
+    ui.print_to_tab("Loaded saved model .... \n", ui.console)
     agent.load(saved_model_path)
   else:
+    ui.print_to_tab("Initialized new agent .... \n", ui.console)
     agent.init()
 
   #reset environment
   runner.reset()
 
 
-  i = 0
+  
   try:
+    i = 0
+    ui.print_to_tab("Running batch iterations .... \n", ui.console)
     while True:
       write_summary = args.train and i % args.summary_iterations == 0
 
       if i > 0 and i % args.save_iterations == 0:
-        _save_if_training(agent, summary_writer)
+        ui.print_to_tab("Saving Training Model .... \n", ui.console)
+        save_training(agent, summary_writer)
 
       result = runner.run_batch(train_summary=write_summary)
 
       if write_summary:
         agent_step, loss, summary = result
         summary_writer.add_summary(summary, global_step=agent_step)
-        print('iter %d: loss = %f' % (agent_step, loss))
+        ui.print_to_tab(f'iteration {agent_step}: loss = {loss}\n', ui.console)
+        print('iteration %d: loss = %f' % (agent_step, loss))
 
       i += 1
 
       if 0 <= args.iterations <= i:
+        ui.print_to_tab("Exiting batch training ... \n", ui.console)
         break
 
   except KeyboardInterrupt:
-      pass
-
-  _save_if_training(agent, summary_writer)
+    pass
+  
+  ui.print_to_tab("Saving trained model \n", ui.console)
+  save_training(agent, summary_writer)
 
   envs.close()
   summary_writer.close()
 
+  ui.print_to_tab(f"mean score: {runner.get_mean_score()} \n", ui.console)
   print('mean score: %f' % runner.get_mean_score())
 
 
 
-def init_agents():
+def init_agents(ui):
   ''' Initialize Agents'''
 
-  agent1 = RL.RLAgent()
-  agent2 = RA.RandomAgent()
-
   if args.train:
-    Train_DRL_Agent()
+    time.sleep(2)
+    ui.print_to_tab("Training Convolutional RL agent .... \n", ui.console)
+    Train_DRL_Agent(ui)
     return
+
+  ui.print_to_tab("Initializing RL Agent 1 \n", ui.console)
+  agent1 = RL.RLAgent()
+  time.sleep(2)
+  ui.print_to_tab("Initializing Random Agent \n", ui.console)
+  agent2 = RA.RandomAgent()
 
 
   try:
-      with sc2_env.SC2Env(
-          map_name=args.map,  # Choose the map
-          players=[sc2_env.Agent(sc2_env.Race.terran),
-                    sc2_env.Agent(sc2_env.Race.terran)],
-          agent_interface_format=features.AgentInterfaceFormat(
-              action_space=actions.ActionSpace.RAW,
-              use_raw_units=True,
-              feature_dimensions=features.Dimensions(screen=84, minimap=64),
-              use_feature_units=True,
-              raw_resolution=args.res,
-          ),
-          step_mul=args.step_mul,  # How fast it runs the gax`me
-          disable_fog=True,  # Too see everything in the minimap
-      ) as env:
-          # Control both agents instead of one
-          run_loop.run_loop([agent1, agent2], env, max_episodes=1000)
+    ui.print_to_tab("Initializing Pysc Environment \n", ui.console)
+    with sc2_env.SC2Env(
+        map_name=args.map,  # Choose the map
+        players=[sc2_env.Agent(sc2_env.Race.terran),
+                  sc2_env.Agent(sc2_env.Race.terran)],
+        agent_interface_format=features.AgentInterfaceFormat(
+            action_space=actions.ActionSpace.RAW,
+            use_raw_units=True,
+            feature_dimensions=features.Dimensions(screen=84, minimap=64),
+            use_feature_units=True,
+            raw_resolution=args.res,
+        ),
+        step_mul=args.step_mul,  # How fast it runs the gax`me
+        disable_fog=True,  # Too see everything in the minimap
+    ) as env:
+        # Control both agents instead of one
+        run_loop.run_loop([agent1, agent2], env, max_episodes=1000)
   except KeyboardInterrupt:
       env.close()
       pass
@@ -209,14 +235,11 @@ def main():
     if args.train and args.overwrite:
       shutil.rmtree(saved_model_path, ignore_errors=True)
       shutil.rmtree(summary_path, ignore_errors=True)
-
-
-    t1 = threading.Thread(target=init_agents)
-    t1.start()
+    
     ui = UI.GUI("RL Agent Starcraft II", "1800x900")
-
-    ui.print_to_tab("Running tests ....", ui.console)
-
+    ui.print_to_tab("Running tests .... \n", ui.console)
+    t1 = threading.Thread(target=init_agents, args=(ui,))
+    t1.start()  
     ui.window.mainloop()
     t1.join()
 
