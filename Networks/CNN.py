@@ -114,8 +114,8 @@ class FullyConv():
                                  self.embed_spatial)
     flat_emb = self.embed_obs(flat_input, FLAT_FEATURES, self.embed_flat)
 
-    screen_out = self.input_conv(self.from_nhwc(screen_emb), 'screen')
-    minimap_out = self.input_conv(self.from_nhwc(minimap_emb), 'minimap')
+    screen_out = self.input_conv(self.from_nhwc(screen_emb), 'feature_screen')
+    minimap_out = self.input_conv(self.from_nhwc(minimap_emb), 'feature_minimap')
 
     broadcast_out = self.broadcast_along_channels(flat_emb, size2d)
 

@@ -55,34 +55,35 @@ class Preprocessor():
   def get_input_channels(self):
     """Get static channel dimensions of network inputs."""
     return {
-        'screen': self.screen_channels,
-        'minimap': self.minimap_channels,
+        'feature_screen': self.screen_channels,
+        'feature_minimap': self.minimap_channels,
         'flat': self.flat_channels,
         'available_actions': self.available_actions_channels}
 
-  def preprocess_obs(self, obs_list):
-    return stack_ndarray_dicts(
-        [self._preprocess_obs(o.observation) for o in obs_list])
+  def preprocess_observations(self, observations_list):
+    ''' Preprocess observations for one player'''
+    return stack_ndarray_dicts([self._preprocess_observations(o[-1]) for o in observations_list])
 
-  def _preprocess_obs(self, obs):
+  def _preprocess_observations(self, observation):
     """Compute screen, minimap and flat network inputs from raw observations.
     """
     available_actions = np.zeros(NUM_FUNCTIONS, dtype=np.float32)
-    available_actions[obs['available_actions']] = 1
+    available_actions[observation['available_actions']] = 1
     
 
-    screen = self._preprocess_spatial(obs['feature_screen'])
-    minimap = self._preprocess_spatial(obs['feature_minimap'])
+    feature_screen = self._preprocess_spatial(observation['feature_screen'])
+    feature_minimap = self._preprocess_spatial(observation['feature_minimap'])
 
     flat = np.concatenate([
-        obs['player']])
-        # TODO available_actions, control groups, cargo, multi select, build queue
+        observation['player']])
+        # TODO other observations like cargo, multi select, build queue
 
     return {
-        'screen': screen,
-        'minimap': minimap,
+        'feature_screen': feature_screen,
+        'feature_minimap': feature_minimap,
         'flat': flat,
         'available_actions': available_actions}
 
   def _preprocess_spatial(self, spatial):
+    ''' Preprocess spatial data transpose with [1,2,0] '''
     return np.transpose(spatial, [1, 2, 0])

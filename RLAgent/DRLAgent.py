@@ -31,7 +31,6 @@ class DRLAgent(Agent.Agent):
     learning_rate=7e-4,
     max_gradient_norm=1.0,
     max_to_keep=5):
-    super(DRLAgent, self).__init__()
     self.sess = sess
     self.network_data_format = network_data_format
     self.network_cls = network_cls
@@ -61,29 +60,30 @@ class DRLAgent(Agent.Agent):
       resolution: Integer resolution of screen and minimap.
     """
     channels = static_shape_channels
-    res = resolution
   
- 
-    screen = tf.compat.v1.placeholder(tf.compat.v1.float32, [None, res, res, channels['screen']],
-                            'input_screen')
-    minimap = tf.compat.v1.placeholder(tf.compat.v1.float32, [None, res, res, channels['minimap']],
-                             'input_minimap')
-    flat = tf.compat.v1.placeholder(tf.compat.v1.float32, [None, channels['flat']],
-                          'input_flat')
-    available_actions = tf.compat.v1.placeholder(tf.compat.v1.float32, [None, channels['available_actions']],
-                                       'input_available_actions')
+    feature_screen = tf.compat.v1.placeholder(
+      tf.compat.v1.float32, [None, resolution, resolution, channels['feature_screen']], 'input_feature_screen')
+    feature_minimap = tf.compat.v1.placeholder(
+      tf.compat.v1.float32, [None, resolution, resolution, channels['feature_minimap']], 'input_feature_minimap')
+    
+    flat = tf.compat.v1.placeholder(
+      tf.compat.v1.float32, [None, channels['flat']], 'input_flat')
+    
+    available_actions = tf.compat.v1.placeholder(
+      tf.compat.v1.float32, [None, channels['available_actions']], 'input_available_actions')
+
     advs = tf.compat.v1.placeholder(tf.compat.v1.float32, [None], 'advs')
     returns = tf.compat.v1.placeholder(tf.compat.v1.float32, [None], 'returns')
 
-    self.screen = screen
-    self.minimap = minimap
+    self.feature_screen = feature_screen
+    self.feature_minimap = feature_minimap
     self.flat = flat
     self.advs = advs
     self.returns = returns
     self.available_actions = available_actions
 
     policy, value = self.network_cls(data_format=self.network_data_format).build(
-        screen, minimap, flat)
+        feature_screen, feature_minimap, flat)
     self.policy = policy
     self.value = value
 
@@ -214,7 +214,7 @@ class DRLAgent(Agent.Agent):
             len(enemy_completed_barrackses),
             len(enemy_marines))
 
-  # Gets the current state of the game, feeds the state into the QLearningTable and the QLearningTable chooses an action
+  # Gets the current state of the game, feeds the state into the NNetwork and the NNetwork provides a policy for choosing an action
   def step(self, obs):
     """
     Args:
@@ -231,8 +231,8 @@ class DRLAgent(Agent.Agent):
     pass
 
   def get_obs_feed(self, obs):
-    return {self.screen: obs['screen'],
-            self.minimap: obs['minimap'],
+    return {self.feature_screen: obs['feature_screen'],
+            self.feature_minimap: obs['feature_minimap'],
             self.flat: obs['flat'],
             self.available_actions: obs['available_actions']}
 

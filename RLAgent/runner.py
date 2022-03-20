@@ -16,30 +16,31 @@ class Runner():
                envs,
                summary_writer=None,
                train=True,
-               n_steps=8,
+               steps_n=8,
                discount=0.99):
     """
     Args:
       agent: A2CAgent instance.
-      envs: SubprocVecEnv instance.
+      envs: ProcessEnv instance.
       summary_writer: summary writer to log episode scores.
       train: whether to train the agent.
-      n_steps: number of agent steps for collecting rollouts.
+      steps_n: number of agent steps for collecting rollouts.
       discount: future reward discount.
     """
     self.agent = agent
     self.envs = envs
     self.summary_writer = summary_writer
     self.train = train
-    self.n_steps = n_steps
+    self.steps_n = steps_n
     self.discount = discount
-    self.preproc = Preprocessor(self.envs.observation_spec()[0])
+    self.preprocess = Preprocessor(self.envs.observation_spec)
     self.episode_counter = 0
     self.cumulative_score = 0.0
 
   def reset(self):
-    obs_raw = self.envs.reset()
-    self.last_obs = self.preproc.preprocess_obs(obs_raw)
+    ''' This gets the observations raw and resets environments'''
+    observation_raw = self.envs.reset()
+    self.last_observation = self.preprocess.preprocess_observations(observation_raw)
 
   def get_mean_score(self):
     return self.cumulative_score / self.episode_counter
@@ -62,7 +63,7 @@ class Runner():
     Returns:
       result: None (if not self.train) or the return value of agent.train.
     """
-    shapes = (self.n_steps, self.envs.n_envs)
+    shapes = (self.steps_n, self.envs.envs_n + 1)
     values = np.zeros(shapes, dtype=np.float32)
     rewards = np.zeros(shapes, dtype=np.float32)
     dones = np.zeros(shapes, dtype=np.float32)
@@ -70,31 +71,33 @@ class Runner():
     all_actions = []
     all_scores = []
 
-    last_obs = self.last_obs
+    last_observation = self.last_observation
 
-    for n in range(self.n_steps):
-      actions, value_estimate = self.agent.step(last_obs)
+    for n in range(self.steps_n):
+      actions, value_estimate = self.agent.step(last_observation)
       actions = mask_unused_argument_samples(actions)
-      size = last_obs['screen'].shape[1:3]
+      size = last_observation['feature_screen'].shape[1:3]
 
       values[n, :] = value_estimate
-      all_obs.append(last_obs)
+      all_obs.append(last_observation)
       all_actions.append(actions)
 
       pysc2_actions = actions_to_pysc2(actions, size)
-      obs_raw = self.envs.step(pysc2_actions)
-      last_obs = self.preproc.preprocess_obs(obs_raw)
-      rewards[n, :] = [t.reward for t in obs_raw]
-      dones[n, :] = [t.last() for t in obs_raw]
 
-      for t in obs_raw:
+      observation_raw = self.envs.step(pysc2_actions)
+
+      last_observation = self.preprocess.preprocess_observations(observation_raw)
+      rewards[n, :] = [t.reward for t in observation_raw]
+      dones[n, :] = [t.last() for t in observation_raw]
+
+      for t in observation_raw:
         if t.last():
           score = self._summarize_episode(t)
           self.cumulative_score += score
 
-    self.last_obs = last_obs
+    self.last_observation = last_observation
 
-    next_values = self.agent.get_value(last_obs)
+    next_values = self.agent.get_value(last_observation)
 
     returns, advs = compute_returns_advantages(
         rewards, dones, values, next_values, self.discount)
@@ -115,16 +118,16 @@ class Runner():
 def compute_returns_advantages(rewards, dones, values, next_values, discount):
   """Compute returns and advantages from received rewards and value estimates.
   Args:
-    rewards: array of shape [n_steps, n_env] containing received rewards.
-    dones: array of shape [n_steps, n_env] indicating whether an episode is
+    rewards: array of shape [steps_n, n_env] containing received rewards.
+    dones: array of shape [steps_n, n_env] indicating whether an episode is
       finished after a time step.
-    values: array of shape [n_steps, n_env] containing estimated values.
+    values: array of shape [steps_n, n_env] containing estimated values.
     next_values: array of shape [n_env] containing estimated values after the
       last step for each environment.
     discount: scalar discount for future rewards.
   Returns:
-    returns: array of shape [n_steps, n_env]
-    advs: array of shape [n_steps, n_env]
+    returns: array of shape [steps_n, n_env]
+    advs: array of shape [steps_n, n_env]
   """
   returns = np.zeros([rewards.shape[0] + 1, rewards.shape[1]])
 
