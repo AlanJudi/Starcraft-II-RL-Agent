@@ -12,8 +12,6 @@ tf.compat.v1.disable_v2_behavior()
 
 class FullyConv():
   """FullyConv network from https://arxiv.org/pdf/1708.04782.pdf.
-  Both, NHWC and NCHW data formats are supported for the network
-  computations. Inputs and outputs are always in NHWC.
   """
 
   def __init__(self, data_format='NCHW'):

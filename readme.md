@@ -22,4 +22,5 @@ You can visualize the agents during training or evaluation with the --vis flag. 
 Summaries are written to out/summary/<experiment_name> and model checkpoints are written to out/models/<experiment_name>.
 
 #Acknowledgments
-The code in Networks/environment.py is based on OpenAI baselines, with adaptions from sc2aibot. Some of the code in RLAgent/runner.py is loosely based on sc2aibot.
+- The code in Networks/environment.py is based on OpenAI baselines, with adaptions from sc2aibot. 
+- Some of the code in RLAgent/runner.py is loosely based on sc2aibot.
