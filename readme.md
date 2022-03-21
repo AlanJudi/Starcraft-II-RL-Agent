@@ -1,6 +1,6 @@
 #Usage
 #Hardware Requirements
-- for fast training, a GPU is recommended. We ran each experiment on a single Titan X Pascal (12GB).
+- for fast training, a GPU is recommended..
 
 #Software Requirements
 - Python 3
